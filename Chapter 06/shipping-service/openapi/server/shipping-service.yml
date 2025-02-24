@@ -1,0 +1,122 @@
+openapi: 3.0.3
+info:
+  title: Shipping Service - Easyshop
+  description: |-
+    APIs for Shipping Service
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+tags:
+  - name: shipment
+    description: Operations about shipments
+paths:
+  /shipments:
+    post:
+      tags:
+        - shipment
+      summary: Add a new shipment
+      operationId: addShipment
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShipmentRequest'
+        required: true
+      responses:
+        '201':
+          description: Successful operation
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+        '400':
+          description: Invalid input
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+  /shipments/{trackingCode}:
+    get:
+      tags:
+        - shipment
+      summary: Find shipment by tracking code
+      description: Returns a single shipment
+      operationId: findShipmentByTrackingCode
+      parameters:
+        - name: trackingCode
+          in: path
+          description: Code of tracking to return
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Get shipment by tracking code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShipmentResponse'
+        '400':
+          description: Invalid input
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Shipment not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+components:
+  schemas:
+    ShipmentRequest:
+      required:
+        - orderCode
+      type: object
+      properties:
+        orderCode:
+          type: string
+    ShipmentStatus:
+      type: string
+      enum:
+        - TAKING_CHARGE
+        - DELIVERING
+        - DELIVERED
+    ShipmentResponse:
+      required:
+        - trackingCode
+        - orderCode
+      type: object
+      properties:
+        trackingCode:
+          type: string
+        orderCode:
+          type: string
+        status:
+          $ref: '#/components/schemas/ShipmentStatus'
+        shippingDate:
+          type: string
+          description: UTC date, ISO-8601 representation
+          format: date-time
+          example: 2024-01-01T00:00:00Z
+        deliveryDate:
+          type: string
+          description: UTC date, ISO-8601 representation
+          format: date-time
+          example: 2024-01-01T00:00:00Z
+    ProblemDetail:
+      type: object
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+          format: int32
+        detail:
+          type: string
+

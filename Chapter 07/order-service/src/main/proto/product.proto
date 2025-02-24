@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.easyshop.catalogservice.proto";
+option java_outer_classname = "ProductProto";
+
+service ProductProtoService {
+  rpc FindProductByCode(ProductProtoRequest) returns (ProductProtoResponse) {
+  }
+}
+
+message ProductProtoRequest {
+  string code = 1;
+}
+
+message ProductProtoResponse {
+  string code = 1;
+  string category = 2;
+  int64 price = 3;
+}

@@ -1,0 +1,10 @@
+query orderDetails($id: ID){
+    findOrderByCode(orderCode: $id) {
+        orderCode
+        status
+        products {
+            productCode
+            name
+        }
+    }
+}

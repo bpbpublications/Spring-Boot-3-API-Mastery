@@ -1,0 +1,295 @@
+openapi: 3.0.3
+info:
+  title: Order Service - Easyshop
+  description: |-
+    APIs for Catalog Service
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+tags:
+  - name: order
+    description: Operations about orders
+paths:
+  /orders:
+    post:
+      tags:
+        - order
+      summary: Add a new order
+      operationId: addOrder
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderRequest'
+        required: true
+      responses:
+        '201':
+          description: Successful operation
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+        '400':
+          description: Invalid input
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+    get:
+      tags:
+        - order
+      summary: Returns a page of orders
+      operationId: findOrders
+      parameters:
+        - name: pageNumber
+          in: query
+          description: the page number, 0 is the first page
+          required: true
+          schema:
+            type: integer
+        - name: pageSize
+          in: query
+          description: the size of page, default is 10
+          required: false
+          schema:
+            type: integer
+            default: 10
+        - name: sort
+          in: query
+          description: the fields on which to do the sorting
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+        - name: order
+          in: query
+          description: ascending or descending order, if the sort field is provided
+          required: false
+          schema:
+            type: string
+            enum:
+              - ASC
+              - DESC
+            default: ASC
+        - name: status
+          in: query
+          description: the filter on the status
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Get a paginated list of orders
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderPage'
+        '400':
+          description: Invalid input
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+  /orders/{orderCode}:
+    get:
+      tags:
+        - order
+      summary: Find order by code
+      description: Returns a single order
+      operationId: findOrderByCode
+      parameters:
+        - name: orderCode
+          in: path
+          description: Code of order to return
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Get order by code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '400':
+          description: Invalid input
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Order not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+    put:
+      tags:
+        - order
+      summary: Update order by code
+      operationId: editOrderByCode
+      parameters:
+        - name: orderCode
+          in: path
+          description: Code of order to return
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderRequest'
+        required: true
+      responses:
+        '200':
+          description: Get updated order
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '404':
+          description: Order not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Order is not in taken charge - not editable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+    delete:
+      tags:
+        - order
+      summary: Delete order by code
+      operationId: removeOrderByCode
+      parameters:
+        - name: orderCode
+          in: path
+          description: Code of order to return
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Order deleted
+        '404':
+          description: Order not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Order is not in taken charge - not editable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+components:
+  schemas:
+    OrderRequest:
+      required:
+        - products
+      type: object
+      properties:
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductOrder'
+    ProductOrder:
+      required:
+        - productCode
+        - quantity
+      type: object
+      properties:
+        productCode:
+          type: string
+        quantity:
+          type: integer
+    OrderResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseOrder'
+      properties:
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductOrder'
+    OrderStatus:
+      type: string
+      enum:
+        - TAKEN_CHARGE
+        - REJECTED
+        - DELIVERING
+        - DELIVERED
+    OrderPage:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderPageItem'
+        totalPages:
+          type: integer
+          description: number of total pages
+        totalElements:
+          type: integer
+          format: int64
+          description: number of total elements for current page
+        first:
+          type: boolean
+          description: true if the current page is the first one
+        last:
+          type: boolean
+          description: true if the current page is the last one
+        number:
+          type: integer
+          description: number of page
+    OrderPageItem:
+      allOf:
+        - $ref: '#/components/schemas/BaseOrder'
+    BaseOrder:
+      required:
+        - orderCode
+        - status
+      type: object
+      discriminator:
+        propertyName: type
+        mapping:
+          orderSummary: "#/components/schemas/OrderPageItem"
+          orderDetail: "#/components/schemas/OrderResponse"
+      properties:
+        orderCode:
+          type: string
+        status:
+          type: string
+        totalPrice:
+          type: integer
+          format: int64
+        createdAt:
+          type: string
+          description: UTC date, ISO-8601 representation
+          format: date-time
+          example: 2024-01-01T00:00:00Z
+        updatedAt:
+          type: string
+          description: UTC date, ISO-8601 representation
+          format: date-time
+          example: 2024-01-01T00:00:00Z
+    ProblemDetail:
+      type: object
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+          format: int32
+        detail:
+          type: string
+

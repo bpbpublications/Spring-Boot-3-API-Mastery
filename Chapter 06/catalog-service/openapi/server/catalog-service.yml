@@ -1,0 +1,230 @@
+openapi: 3.0.3
+info:
+  title: Catalog Service - Easyshop
+  description: |-
+    APIs for Catalog Service
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+tags:
+  - name: product
+    description: Operations about product
+paths:
+  /products:
+    get:
+      tags:
+        - product
+      summary: Get a paginated list of products
+      description: Get a paginated list of products
+      operationId: findProducts
+      parameters:
+        - name: page
+          in: query
+          description: Number of page
+          required: true
+          schema:
+            type: integer
+        - name: size
+          in: query
+          description: Size of elements in the page
+          required: true
+          schema:
+            type: integer
+        - name: productCode
+          in: query
+          description: Filter by product codes
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductPageResponse'
+        '400':
+          description: Invalid input
+    post:
+      tags:
+        - product
+      summary: Add a new product to the store
+      description: Add a product to the store
+      operationId: addProduct
+      requestBody:
+        description: Create a new product in the store
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductRequest'
+        required: true
+      responses:
+        '201':
+          description: Successful operation
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+        '400':
+          description: Invalid input
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+  /products/{productCode}:
+    get:
+      tags:
+        - product
+      summary: Find product by code
+      description: Returns a single product
+      operationId: findProductByCode
+      parameters:
+        - name: productCode
+          in: path
+          description: Code of productId to return
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Get product by code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '404':
+          description: Product not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+    put:
+      tags:
+        - product
+      summary: Update a product
+      description: Update a product
+      operationId: editProduct
+      parameters:
+        - name: productCode
+          in: path
+          description: Code of productId to return
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: Update a product in the store
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductRequest'
+        required: true
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '201':
+          description: Created new product
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+        '400':
+          description: Invalid input
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+    delete:
+      tags:
+        - product
+      summary: Deletes a product
+      description: Delete a product
+      operationId: deleteProduct
+      parameters:
+        - name: productCode
+          in: path
+          description: Product code to delete
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Product deleted
+        '404':
+          description: Product not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+components:
+  schemas:
+    ProductRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseProduct'
+        - type: object
+    ProductResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseProduct'
+        - type: object
+    BaseProduct:
+      required:
+        - code
+        - category
+        - price
+      type: object
+      properties:
+        code:
+          type: string
+          example: Product Code
+        name:
+          type: string
+          example: Product Name
+#          format: password
+        category:
+          $ref: '#/components/schemas/ProductCategory'
+        price:
+          type: integer
+          format: int64
+          example: 1000
+        brand:
+          type: string
+          example: TopComputer
+    ProductCategory:
+      type: string
+      enum:
+        - laptop
+        - smartphone
+    ProblemDetail:
+      type: object
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+          format: int32
+        detail:
+          type: string
+    ProductPageResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductResponse'
+        totalElements:
+          type: integer
+        hasNext:
+          type: boolean
+        isLast:
+          type: boolean
+

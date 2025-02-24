@@ -1,0 +1,22 @@
+extend type Query {
+    findOrderByCode(orderCode: ID): Order
+    orders(status: String): [Order]
+}
+
+type Order {
+    orderCode: ID
+    status: String
+    totalPrice: Long
+    createdAt: DateTime
+    updatedAt: DateTime
+    products: [Product]
+}
+
+type Product {
+    productCode: ID
+    name: String
+    category: String
+    price: Int
+    brand: String
+    quantity: Int
+}

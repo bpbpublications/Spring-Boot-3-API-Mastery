@@ -1,0 +1,71 @@
+spring:
+  application:
+    name: edge-service
+#  codec:
+#    log-request-details: true
+  cloud:
+    gateway:
+      default-filters:
+        - name: Retry
+          args:
+            retries: 3
+            methods: GET
+            series: SERVER_ERROR
+            exceptions: |
+              java.io.IOException,java.net.ConnectException,
+              org.springframework.cloud.gateway.support.TimeoutException
+            backoff:
+              firstBackoff: 100ms
+              maxBackoff: 1s
+              factor: 2
+              basedOnPreviousValue: false
+        - SaveSession
+        - TokenRelay
+      routes:
+        - id: catalog-service
+          uri: http://localhost:8080/products
+          predicates:
+            - Path=/products/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: catalogServiceCircuitBreaker
+                fallbackUri: forward:/catalog-service-fallback
+
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            provider: keycloak
+            authorization-grant-type: authorization_code
+            client-id: edge-service
+            client-secret: easyshop-secret
+#            redirect-uri: "{baseUrl}/login/oauth2/code/keycloak"
+            scope: openid
+        provider:
+          keycloak:
+            issuer-uri: http://localhost:8091/realms/Easyshop
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+server:
+  port: 8090
+
+logging:
+  level:
+    org.springframework.web: TRACE
+    io.github.resilience4j: DEBUG
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowSize: 10
+        permittedNumberOfCallsInHalfOpenState: 2
+        failureRateThreshold: 50
+        waitDurationInOpenState: 15000
+
+

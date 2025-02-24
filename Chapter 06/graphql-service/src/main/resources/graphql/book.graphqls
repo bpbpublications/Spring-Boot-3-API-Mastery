@@ -1,0 +1,27 @@
+extend type Query {
+    bookById(id: ID): Book
+    booksByName(name: String): [Book]
+}
+
+extend type Mutation {
+    saveBook(book: BookInput!): Book
+}
+
+input BookInput {
+    name: String,
+    pageCount: Int
+    authorId: String
+}
+
+type Book {
+    id: ID
+    name: String
+    pageCount: Int
+    author: Author
+}
+
+type Author {
+    id: ID
+    firstName: String
+    lastName: String
+}

@@ -1,0 +1,133 @@
+version: '3'
+services:
+  pg:
+    image: 'postgres:16.2'
+    container_name: "easyshop-postgres"
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - ./postgres:/docker-entrypoint-initdb.d
+      - easyshop-postgres:/var/lib/postgresql/data
+  pgadmin:
+    image: dpage/pgadmin4:8.4
+    container_name: "easyshop-pgadmin"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@pgadmin.com
+      PGADMIN_DEFAULT_PASSWORD: password
+      PGADMIN_LISTEN_PORT: 80
+    ports:
+      - 15432:80
+    volumes:
+      - easyshop-pgadmin:/var/lib/pgadmin
+    depends_on:
+      - pg
+  #https://github.com/confluentinc/cp-all-in-one/blob/v7.6.1/cp-all-in-one-kraft/docker-compose.yml
+  broker:
+    image: confluentinc/cp-kafka:7.6.1
+    hostname: broker
+    container_name: broker
+    ports:
+      - "9092:9092"
+      - "9101:9101"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: | 
+        CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: | 
+        PLAINTEXT://broker:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_JMX_PORT: 9101
+      KAFKA_JMX_HOSTNAME: localhost
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@broker:29093'
+      KAFKA_LISTENERS: | 
+        PLAINTEXT://broker:29092,CONTROLLER://broker:29093,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
+      CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
+    command: sh -c "((sleep 15 && kafka-topics --bootstrap-server localhost:9092 
+      --topic shipment_event_topic --create --partitions 10 
+      --replication-factor 1)&) && /etc/confluent/docker/run ">
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0
+    container_name: "easyshop-keycloak"
+    command: start-dev --import-realm
+    volumes:
+      - ./keycloak:/opt/keycloak/data/import
+    environment:
+      - KC_DB=postgres
+      - KC_DB_URL=jdbc:postgresql://easyshop-postgres:5432/keycloak
+      - KC_DB_USERNAME=user
+      - KC_DB_PASSWORD=password
+      - KEYCLOAK_ADMIN=user
+      - KEYCLOAK_ADMIN_PASSWORD=password
+    ports:
+      - 8091:8080
+    depends_on:
+      - pg
+  redis:
+    image: "redis:7.2"
+    container_name: "easyshop-redis"
+    ports:
+      - 6379:6379
+
+  tempo:
+    image: grafana/tempo:2.3.1
+    container_name: "easyshop-tempo"
+    extra_hosts: ['host.docker.internal:host-gateway']
+    command: [ "-config.file=/etc/tempo.yaml" ]
+    volumes:
+      - ./tempo/tempo-local.yaml:/etc/tempo.yaml:ro
+      - ./tempo-data:/tmp/tempo
+    ports:
+      - "9411:9411" # zipkin
+    depends_on:
+      - loki
+
+  loki:
+    image: grafana/loki:2.9.4
+    container_name: "easyshop-loki"
+    extra_hosts: ['host.docker.internal:host-gateway']
+    command: [ "-config.file=/etc/loki/local-config.yaml" ]
+    ports:
+      - "3100:3100"                                   # loki needs to be exposed so it receives logs
+#    depends_on:
+#      - fluent-bit
+  prometheus:
+    image: prom/prometheus:v2.50.0
+    container_name: "easyshop-prometheus"
+    extra_hosts: ['host.docker.internal:host-gateway']
+    command:
+      - --enable-feature=exemplar-storage
+      - --config.file=/etc/prometheus/prometheus.yml
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9095:9090"
+  grafana:
+    image: grafana/grafana:10.2.4
+    container_name: "easyshop-grafana"
+    extra_hosts: ['host.docker.internal:host-gateway']
+    volumes:
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+    ports:
+      - "3000:3000"
+    depends_on:
+      - loki
+      - prometheus
+
+volumes:
+  easyshop-postgres:
+  easyshop-pgadmin:

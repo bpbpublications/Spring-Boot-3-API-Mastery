@@ -1,0 +1,78 @@
+asyncapi: 3.0.0
+info:
+  title: Shipment Event Consumer
+  version: 1.0.0
+  description: |
+    This service consumes shipping events from Apache Kafka and updates the status of orders in the database.
+
+servers:
+  kafkaServer:
+    host: localhost:9092
+    description: Kafka server running locally
+    protocol: kafka
+
+operations:
+  handleShipmentEvent:
+    action: receive
+    channel:
+      $ref: '#/channels/shipmentEventTopic'
+    bindings:
+      kafka:
+        bindingVersion: '0.5.0'
+        groupId:
+          type: string
+          enum: [ 'operation-service' ]
+
+
+
+channels:
+  shipmentEventTopic:
+    description: Kafka channel for shipping events
+    address: shipment_event_topic
+    messages:
+      shipmentEvent:
+        $ref: '#/components/messages/ShipmentEventMessage'
+    bindings:
+      kafka:
+        bindingVersion: '0.5.0'
+        partitions: 10
+        replicas: 1
+
+
+components:
+  messages:
+    ShipmentEventMessage:
+      bindings:
+        kafka:
+          key:
+            type: string
+            description: 'The orderCode from the payload'
+      payload:
+        $ref: '#/components/schemas/ShipmentEvent'
+      headers:
+        properties:
+          id:
+            type: string
+            description: 'The orderCode from the payload'
+
+  schemas:
+    ShipmentEvent:
+      type: object
+      properties:
+        trackingCode:
+          type: string
+          description: Shipment tracking code
+        orderCode:
+          type: string
+        status:
+          type: string
+        shippingDate:
+          type: string
+          format: date-time
+        deliveryDate:
+          type: string
+          format: date-time
+      required:
+        - trackingCode
+        - orderCode
+        - status
